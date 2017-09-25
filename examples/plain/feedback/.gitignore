@@ -1,0 +1,4 @@
+reader.json
+*.jar
+local.properties
+/build
