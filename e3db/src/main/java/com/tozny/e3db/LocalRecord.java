@@ -58,6 +58,16 @@ public class LocalRecord implements Record {
   }
 
   @Override
+  public String signature() {
+    return signature;
+  }
+
+  @Override
+  public Record document() {
+    return this;
+  }
+
+  @Override
   public String toSerialized() {
     try {
       SortedMap<String, Object> clientMeta = new TreeMap<>();
