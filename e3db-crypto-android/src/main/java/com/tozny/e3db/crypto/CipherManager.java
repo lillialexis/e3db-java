@@ -18,12 +18,13 @@ import android.os.Build;
 import android.support.annotation.RequiresApi;
 
 import javax.crypto.Cipher;
+import javax.crypto.CipherOutputStream;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
+import java.security.KeyStore;
+import java.security.SecureRandom;
 
 class CipherManager {
 
@@ -45,18 +46,43 @@ class CipherManager {
     }
 
     private static byte[] loadInitializationVector(Context context, String fileName) throws Exception {
-        FileInputStream fis = null;
-        byte[] bytes;
+//        FileInputStream fis = null;
+//        byte[] bytes;
+//
+//        try {
+//            File file = new File(FileSystemManager.getInitializationVectorFilePath(context, fileName));
+//            int fileSize = (int) file.length();
+//            bytes = new byte[fileSize];
+//            fis = new FileInputStream(file);
+//            fis.read(bytes, 0, fileSize);
+//
+//        } finally {
+//            if (fis != null) fis.close();
+//        }
+//
+//        return bytes;
 
-        try {
-            File file = new File(FileSystemManager.getInitializationVectorFilePath(context, fileName));
-            int fileSize = (int) file.length();
-            bytes = new byte[fileSize];
-            fis = new FileInputStream(file);
-            fis.read(bytes, 0, fileSize);
+        byte[] bytes = new byte[12];
 
-        } finally {
-            if (fis != null) fis.close();
+        if (!new File(FileSystemManager.getInitializationVectorFilePath(context, fileName)).exists()) {
+
+            SecureRandom random = new SecureRandom();
+            random.nextBytes(bytes);
+
+            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(FileSystemManager.getInitializationVectorFilePath(context, fileName)));
+            bos.write(bytes);
+            bos.flush();
+            bos.close();
+
+        } else {
+            FileInputStream inputStream = new FileInputStream(FileSystemManager.getInitializationVectorFilePath(context, fileName));
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            int read = 0;
+            while ((read = inputStream.read(bytes, 0, bytes.length)) != -1) {
+                baos.write(bytes, 0, read);
+            }
+            baos.flush();
         }
 
         return bytes;
@@ -71,14 +97,23 @@ class CipherManager {
 
     static class SaveCipherGetter implements GetCipher {
 
+        @RequiresApi(api = Build.VERSION_CODES.KITKAT)
         @Override
         public Cipher getCipher(Context context, String identifier, SecretKey key) throws Exception {
+
+            GCMParameterSpec params = new GCMParameterSpec(128, loadInitializationVector(context, identifier)); // Use SecureRandom to get 12 random bytes
+
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, key);
+            cipher.init(Cipher.ENCRYPT_MODE, key, params);
 
-            IvParameterSpec ivParams = cipher.getParameters().getParameterSpec(IvParameterSpec.class);
+            
 
-            saveInitializationVector(context, identifier, ivParams.getIV());
+            //Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            //cipher.init(Cipher.ENCRYPT_MODE, key);
+
+            //IvParameterSpec ivParams = cipher.getParameters().getParameterSpec(IvParameterSpec.class);
+
+            //saveInitializationVector(context, identifier, ivParams.getIV());
 
             // TODO: Log b64 IV to make sure is new every time
 
